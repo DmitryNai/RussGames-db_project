@@ -1,6 +1,7 @@
 package db
 
 import (
+    "context"
     "time"
 
     "github.com/jackc/pgx/v5/pgxpool"
@@ -25,7 +26,8 @@ func Init(databaseURL string) (*gorm.DB, *pgxpool.Pool, error) {
     cfg.MinConns = 1
     cfg.MaxConnLifetime = time.Hour
 
-    pool, err := pgxpool.NewWithConfig(nil, cfg)
+    ctx := context.Background()
+    pool, err := pgxpool.NewWithConfig(ctx, cfg)
     if err != nil {
         return nil, nil, err
     }
