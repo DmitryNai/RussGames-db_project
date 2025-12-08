@@ -1,0 +1,324 @@
+openapi: 3.0.0
+info:
+  title: RussGames API
+  description: Информационная система для цифровой дистрибьюции видеоигр.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Основной API маршрут (v1)
+tags:
+  - name: Пользователи (Users)
+    description: Операции CRUD и управление профилями.
+  - name: Игры и Каталог (Games)
+    description: Просмотр и управление каталогом игр.
+  - name: Коммерция (Commerce)
+    description: Покупка и обработка транзакций.
+  - name: Отчеты и Импорт (Reports & Admin)
+    description: Аналитика и высокопроизводительные служебные операции.
+
+paths:
+  /users:
+    get:
+      tags:
+        - Пользователи (Users)
+      summary: Получить список пользователей
+      description: Возвращает список всех зарегистрированных пользователей.
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags:
+        - Пользователи (Users)
+      summary: Создать нового пользователя
+      description: Регистрация нового пользователя в системе.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Пользователь успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Неверный запрос (ошибка валидации)
+
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+        description: Идентификатор пользователя (UUID)
+    get:
+      tags:
+        - Пользователи (Users)
+      summary: Получить пользователя по ID
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Пользователь не найден
+    put:
+      tags:
+        - Пользователи (Users)
+      summary: Обновить пользователя по ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Обновление успешно
+        '404':
+          description: Пользователь не найден
+    delete:
+      tags:
+        - Пользователи (Users)
+      summary: Удалить пользователя по ID
+      responses:
+        '200':
+          description: Пользователь успешно удален
+        '404':
+          description: Пользователь не найден
+
+  /games:
+    get:
+      tags:
+        - Игры и Каталог (Games)
+      summary: Получить список игр
+      description: Возвращает список игр в каталоге.
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Game'
+    post:
+      tags:
+        - Игры и Каталог (Games)
+      summary: Создать новую игру
+      description: Добавление новой игры разработчиком.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameCreate'
+      responses:
+        '201':
+          description: Игра успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+
+  /games/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+        description: Идентификатор игры (UUID)
+    get:
+      tags:
+        - Игры и Каталог (Games)
+      summary: Получить игру по ID
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+        '404':
+          description: Игра не найдена
+
+  /purchases:
+    post:
+      tags:
+        - Коммерция (Commerce)
+      summary: Оформить покупку
+      description: Создает транзакцию, выдает лицензию и добавляет игру в библиотеку. Атомарная операция.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequest'
+      responses:
+        '201':
+          description: Покупка успешно совершена
+        '400':
+          description: Ошибка транзакции или валидации
+
+  /batch-import/users:
+    post:
+      tags:
+        - Отчеты и Импорт (Reports & Admin)
+      summary: Пакетный импорт пользователей
+      description: Высокоскоростной импорт данных пользователей (ожидает CSV или подобный формат для COPY).
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+              description: CSV файл для импорта.
+      responses:
+        '202':
+          description: Запрос на импорт принят в обработку
+        '400':
+          description: Неверный формат файла
+
+  /reports/top-games:
+    get:
+      tags:
+        - Отчеты и Импорт (Reports & Admin)
+      summary: Отчет по топовым играм
+      description: Возвращает список игр, отсортированных по количеству продаж.
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopGameReport'
+
+  /reports/sales-by-user:
+    get:
+      tags:
+        - Отчеты и Импорт (Reports & Admin)
+      summary: Отчет по продажам для пользователей
+      description: Возвращает агрегированные данные о покупках каждого пользователя.
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalesByUserReport'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        profile:
+          type: object
+    UserCreate:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+    UserUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+        country:
+          type: string
+    Game:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        developer_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        price:
+          type: number
+          format: float
+        avg_rating:
+          type: number
+    GameCreate:
+      type: object
+      properties:
+        developer_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        price:
+          type: number
+    PurchaseRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        game_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+    TopGameReport:
+      type: object
+      properties:
+        game_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        sales_count:
+          type: integer
+    SalesByUserReport:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        total_spent:
+          type: number
+        total_purchases:
+          type: integer
