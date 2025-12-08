@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/example/russgames/internal/models"
+	"github.com/DmitryNai/RussGames-db_project/backend-go/internal/models"
 	"github.com/google/uuid"
 )
 
