@@ -5,13 +5,39 @@ import (
 	"encoding/csv"
 	"io"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func BatchImportUsers(pgxPool *pgxpool.Pool) gin.HandlerFunc {
+var identRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+func safeIdent(s string) (string, bool) {
+	if !identRe.MatchString(s) {
+		return "", false
+	}
+	return `"` + s + `"`, true
+}
+
+func BatchImportHandler(pgxPool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tableRaw := c.Query("table")
+		schemaRaw := c.DefaultQuery("schema", "public")
+
+		table, ok := safeIdent(tableRaw)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid table name"})
+			return
+		}
+
+		schema, ok := safeIdent(schemaRaw)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid schema name"})
+			return
+		}
+
 		file, _, err := c.Request.FormFile("file")
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "file required"})
@@ -20,12 +46,30 @@ func BatchImportUsers(pgxPool *pgxpool.Pool) gin.HandlerFunc {
 		defer file.Close()
 
 		r := csv.NewReader(file)
-		// Read header
-		_, err = r.Read()
+
+		// header
+		header, err := r.Read()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid csv header"})
 			return
 		}
+
+		cols := make([]string, 0, len(header))
+		for _, h := range header {
+			h = strings.TrimSpace(h)
+			col, ok := safeIdent(h)
+			if !ok {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "invalid column name: " + h,
+				})
+				return
+			}
+			cols = append(cols, col)
+		}
+
+		copyCmd := "COPY " + schema + "." + table +
+			" (" + strings.Join(cols, ",") + ")" +
+			" FROM STDIN WITH (FORMAT csv, NULL '\\N')"
 
 		ctx := context.Background()
 		conn, err := pgxPool.Acquire(ctx)
@@ -35,9 +79,8 @@ func BatchImportUsers(pgxPool *pgxpool.Pool) gin.HandlerFunc {
 		}
 		defer conn.Release()
 
-		copyCmd := "COPY users(id,username,email,password_hash,created_at,status,country,profile) FROM STDIN WITH (FORMAT csv)"
-
 		pr, pw := io.Pipe()
+
 		go func() {
 			defer pw.Close()
 			for {
@@ -48,17 +91,16 @@ func BatchImportUsers(pgxPool *pgxpool.Pool) gin.HandlerFunc {
 				if err != nil {
 					continue
 				}
+
 				for i := range rec {
-					rec[i] = `"` + escapeQuotes(rec[i]) + `"`
-				}
-				line := ""
-				for i, f := range rec {
-					if i > 0 {
-						line += ","
+					if strings.TrimSpace(rec[i]) == "" {
+						rec[i] = `\N`
+					} else {
+						rec[i] = escapeCSV(rec[i])
 					}
-					line += f
 				}
-				line += "\n"
+
+				line := strings.Join(rec, ",") + "\n"
 				if _, err := pw.Write([]byte(line)); err != nil {
 					return
 				}
@@ -77,17 +119,7 @@ func BatchImportUsers(pgxPool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func escapeQuotes(s string) string {
-	if s == "" {
-		return ""
-	}
-	b := make([]byte, 0, len(s))
-	for i := 0; i < len(s); i++ {
-		if s[i] == '"' {
-			b = append(b, '"', '"')
-		} else {
-			b = append(b, s[i])
-		}
-	}
-	return string(b)
+func escapeCSV(s string) string {
+	s = strings.ReplaceAll(s, `"`, `""`)
+	return `"` + s + `"`
 }
