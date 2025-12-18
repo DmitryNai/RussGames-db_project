@@ -9,20 +9,20 @@ import (
 	"gorm.io/gorm"
 )
 
-func ListDevelopers(db *gorm.DB) gin.HandlerFunc {
+func ListTransactions(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var devs []models.Developer
-		if err := db.Limit(100).Find(&devs).Error; err != nil {
+		var txs []models.Transaction
+		if err := db.Limit(100).Find(&txs).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, devs)
+		c.JSON(http.StatusOK, txs)
 	}
 }
 
-func CreateDeveloper(db *gorm.DB) gin.HandlerFunc {
+func CreateTransaction(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input models.Developer
+		var input models.Transaction
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -38,11 +38,11 @@ func CreateDeveloper(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func GetDeveloper(db *gorm.DB) gin.HandlerFunc {
+func GetTransaction(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		var dev models.Developer
-		if err := db.First(&dev, "id = ?", id).Error; err != nil {
+		var tx models.Transaction
+		if err := db.First(&tx, "id = ?", id).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 				return
@@ -50,19 +50,19 @@ func GetDeveloper(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, dev)
+		c.JSON(http.StatusOK, tx)
 	}
 }
 
-func UpdateDeveloper(db *gorm.DB) gin.HandlerFunc {
+func UpdateTransaction(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		var input models.Developer
+		var input models.Transaction
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if err := db.Model(&models.Developer{}).Where("id = ?", id).Updates(input).Error; err != nil {
+		if err := db.Model(&models.Transaction{}).Where("id = ?", id).Updates(input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -70,10 +70,10 @@ func UpdateDeveloper(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func DeleteDeveloper(db *gorm.DB) gin.HandlerFunc {
+func DeleteTransaction(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		if err := db.Delete(&models.Developer{}, "id = ?", id).Error; err != nil {
+		if err := db.Delete(&models.Transaction{}, "id = ?", id).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
