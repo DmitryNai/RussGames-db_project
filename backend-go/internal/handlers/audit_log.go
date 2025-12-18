@@ -11,7 +11,7 @@ import (
 func ListAuditLogs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var logs []models.AuditLog
-		if err := db.Limit(100).Find(&logs).Error; err != nil {
+		if err := db.Table("audit_log").Limit(100).Find(&logs).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
